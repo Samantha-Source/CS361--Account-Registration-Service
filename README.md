@@ -8,6 +8,8 @@ The default local URL is `http://127.0.0.1:5002`.
 
 ## Setup and run
 
+### Running Windows:
+
 Python 3.11 or newer is recommended. From this repository in PowerShell:
 
 ```powershell
@@ -31,6 +33,34 @@ Run the automated tests with:
 ```powershell
 & .\.venv\Scripts\python.exe -m pytest -q
 ```
+
+
+### Running Mac:
+
+Python 3.11 or newer is recommended. From this repository in Terminal:
+
+```bash
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements-dev.txt
+./.venv/bin/python app.py
+```
+
+Leave the service running. In a second terminal, run the separate test program:
+
+```bash
+./.venv/bin/python test_program.py
+```
+
+The test program makes real HTTP requests and prints each request and response.
+It demonstrates registration, login, account lookup, logout, and rejection of a
+revoked token using generated fake account data.
+
+Run the automated tests with:
+
+```bash
+./.venv/bin/python -m pytest -q
+```
+
 
 ## REST API contract
 
