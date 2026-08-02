@@ -1,263 +1,183 @@
-# CS361 Account Registration Service (MS2)
+# Account Registration Service (MS2)
 
-MS2 is a Flask microservice for account registration, login, account lookup,
-and logout. A Main Program can communicate with it through a REST
-API using JSON. Account data stays in the service-owned SQLite database.
+MS2 handles account registration, login, account lookup, and logout. It uses an
+Express REST API with JSON and stores accounts in MongoDB. Passwords are hashed
+with bcrypt before they are stored.
 
 The default local URL is `http://127.0.0.1:5002`.
 
-## Setup and run
+## Setup
 
-### Running Windows:
+Node.js and MongoDB are required.
 
-Python 3.11 or newer is recommended. From this repository in PowerShell:
-
-```powershell
-python -m venv .venv
-& .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
-& .\.venv\Scripts\python.exe app.py
-```
-
-Leave the service running. In a second terminal, run the separate test program:
+### Windows
 
 ```powershell
-& .\.venv\Scripts\python.exe test_program.py
+npm install
+Copy-Item .env.example .env
+npm start
 ```
 
-The test program makes real HTTP requests and prints each request and response.
-It demonstrates registration, login, account lookup, logout, and rejection of a
-revoked token using generated fake account data.
+### macOS or Linux
 
-Run the automated tests with:
+```bash
+npm install
+cp .env.example .env
+npm start
+```
+
+Set `MONGODB_URI` and replace `JWT_SECRET` in `.env` before starting the
+service. `JWT_SECRET` must have at least 32 characters. The same secret can be
+used by A Habit A Day's protected habit routes because the token includes the
+same `userId` field.
+
+For a quick local demonstration without installing MongoDB, run:
 
 ```powershell
-& .\.venv\Scripts\python.exe -m pytest -q
+npm run demo-service
 ```
 
+This starts the service with a temporary MongoDB database. The data is removed
+when the process stops.
 
-### Running Mac:
+## Request data
 
-Python 3.11 or newer is recommended. From this repository in Terminal:
+Send JSON with `Content-Type: application/json`.
 
-```bash
-python3 -m venv .venv
-./.venv/bin/python -m pip install -r requirements-dev.txt
-./.venv/bin/python app.py
+| Method and path | Purpose |
+| --- | --- |
+| `GET /health` | Check whether the service is running |
+| `POST /accounts` | Register an account |
+| `POST /sessions` | Log in with a username or email |
+| `GET /accounts/me` | Receive the account for a bearer token |
+| `POST /sessions/logout` | Log out and invalidate active MS2 tokens |
+
+Registration requires `username`, `email`, and `password`. `name` is optional
+and defaults to the username.
+
+```javascript
+const response = await fetch("http://127.0.0.1:5002/accounts", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    username: "demo_user",
+    name: "Demo User",
+    email: "demo@example.test",
+    password: "Example-Passphrase-42!"
+  })
+});
 ```
 
-Leave the service running. In a second terminal, run the separate test program:
+Usernames must be 3-50 characters and may contain letters, numbers, periods,
+underscores, and hyphens. Passwords must be 12-128 characters and contain an
+uppercase letter, lowercase letter, number, and symbol.
 
-```bash
-./.venv/bin/python test_program.py
+Login accepts either `username` or `email`, but not both:
+
+```javascript
+const response = await fetch("http://127.0.0.1:5002/sessions", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email: "demo@example.test",
+    password: "Example-Passphrase-42!"
+  })
+});
 ```
 
-The test program makes real HTTP requests and prints each request and response.
-It demonstrates registration, login, account lookup, logout, and rejection of a
-revoked token using generated fake account data.
+## Receive data
 
-Run the automated tests with:
-
-```bash
-./.venv/bin/python -m pytest -q
-```
-
-
-## REST API contract
-
-Send JSON requests with `Content-Type: application/json`. Protected endpoints
-also require `Authorization: Bearer <session_token>`.
-
-| Method and path | Request | Successful response |
-| --- | --- | --- |
-| `GET /health` | No body | HTTP 200 JSON status |
-| `POST /accounts` | JSON `username`, `email`, `password` | HTTP 201 account JSON |
-| `POST /sessions` | JSON `username` or `email`, plus `password` | HTTP 200 account ID and session token |
-| `GET /accounts/me` | Bearer token | HTTP 200 public account JSON |
-| `POST /sessions/logout` | Bearer token | HTTP 204 with no body |
-
-Invalid requests return structured error JSON with HTTP 400, 401, or 409.
-Usernames are 3-50 characters and may contain letters, numbers, periods,
-underscores, and hyphens. Passwords are 12-128 characters and need an uppercase
-letter, lowercase letter, number, and symbol.
-
-### Request example
-
-This Python example shows exactly how another program requests data from MS2:
-
-```python
-import os
-import requests
-
-base_url = os.getenv("ACCOUNT_SERVICE_URL", "http://127.0.0.1:5002")
-password = "Example-Passphrase-42!"
-
-registration = requests.post(
-    f"{base_url}/accounts",
-    json={
-        "username": "demo_user",
-        "email": "demo@example.test",
-        "password": password,
-    },
-    timeout=5,
-)
-
-login = requests.post(
-    f"{base_url}/sessions",
-    json={"username": "demo_user", "password": password},
-    timeout=5,
-)
-session_token = login.json()["session_token"]
-headers = {"Authorization": f"Bearer {session_token}"}
-
-account = requests.get(f"{base_url}/accounts/me", headers=headers, timeout=5)
-logout = requests.post(f"{base_url}/sessions/logout", headers=headers, timeout=5)
-```
-
-### Response examples
-
-Read response bodies with `response.json()`. A successful registration returns
-HTTP 201:
+Read successful registration and login responses with `response.json()`.
+Registration returns HTTP 201:
 
 ```json
 {
-  "account_id": "acct_9aa4eb55e46345dd8cf37e6903579d0c",
+  "account_id": "66b00fdcc06e636f38be8181",
+  "name": "Demo User",
   "username": "demo_user",
   "email": "demo@example.test"
 }
 ```
 
-A successful login returns HTTP 200:
+Login returns HTTP 200:
 
 ```json
 {
   "authenticated": true,
-  "account_id": "acct_9aa4eb55e46345dd8cf37e6903579d0c",
-  "session_token": "<new opaque bearer token>"
+  "account_id": "66b00fdcc06e636f38be8181",
+  "session_token": "<JWT bearer token>"
 }
 ```
 
-Errors use one consistent JSON shape:
+Use that token for protected requests:
+
+```javascript
+const accountResponse = await fetch("http://127.0.0.1:5002/accounts/me", {
+  headers: { Authorization: `Bearer ${session.session_token}` }
+});
+const account = await accountResponse.json();
+```
+
+Logout returns HTTP 204 with an empty body. Errors return JSON such as:
 
 ```json
 {
   "error": {
-    "code": "DUPLICATE_EMAIL",
-    "message": "An account already uses that email address.",
-    "field": "email"
+    "code": "INVALID_CREDENTIALS",
+    "message": "Invalid username, email, or password."
   }
 }
 ```
 
-Generated account IDs and tokens will differ. Logout returns HTTP 204 with no
-body, so do not call `response.json()` on a successful logout response.
-
-## UML sequence diagram
+## Communication sequence
 
 ```mermaid
 sequenceDiagram
-    participant Client as Test Program
-    participant MS2 as MS2 REST API
+    participant Program as Test Program
+    participant MS2 as Account Service
+    participant Mongo as MongoDB
 
-    Client->>MS2: POST /accounts with JSON
-    MS2->>MS2: Validate and save account
-    MS2-->>Client: Account JSON or error JSON
-    Client->>MS2: POST /sessions with JSON
-    MS2->>MS2: Check credentials
-    MS2-->>Client: Session JSON or error JSON
+    Program->>MS2: POST /accounts with JSON
+    MS2->>Mongo: Save account and password hash
+    Mongo-->>MS2: Saved account
+    MS2-->>Program: HTTP 201 account JSON
+    Program->>MS2: POST /sessions with JSON
+    MS2->>Mongo: Find account
+    Mongo-->>MS2: Account and password hash
+    MS2-->>Program: HTTP 200 session JSON
 ```
 
-## Main Program integration
+## Test program
 
-MS2 provides account storage, validation, password hashing, sessions, a fixed
-REST API contract, and structured errors. The generic JavaScript client is in
-[`examples/account-service-client.js`](examples/account-service-client.js).
-The A Habit A Day field adapter is in
-[`examples/a-habit-a-day-account-client.js`](examples/a-habit-a-day-account-client.js).
+Keep the service running in one terminal. Run the separate test program in a
+second terminal:
 
-For a Vite Main Program, copy the adapter into its `src` directory and set:
-
-```dotenv
-VITE_ACCOUNT_SERVICE_URL=http://127.0.0.1:5002
+```powershell
+npm run demo-test
 ```
 
-```javascript
-import {
-  AccountServiceClient,
-  AccountServiceError,
-} from "./account-service-client.js";
+The test program imports no service files. It sends real HTTP requests for the
+health check, registration, login, account lookup, logout, and rejected token.
 
-const accounts = new AccountServiceClient();
+Run the automated contract tests with:
 
-try {
-  await accounts.register({ username, email, password });
-  const session = await accounts.login({ username, password });
-  const me = await accounts.currentAccount(session.session_token);
-  await accounts.logout(session.session_token);
-} catch (error) {
-  if (error instanceof AccountServiceError) {
-    console.error(error.code, error.message);
-  } else {
-    throw error;
-  }
-}
+```powershell
+npm test
 ```
 
-Non-Vite or deployed clients can pass a configured URL directly with
-`new AccountServiceClient(serviceUrl)`. Browser projects running on a different
-origin must also add that exact origin to `ACCOUNT_ALLOWED_ORIGINS` before MS2
-starts. Each Main Program keeps its own non-account data; MS2 receives only the
-documented account fields.
+## Main Program hookup
 
-### A Habit A Day remaining task
+`examples/account-service-client.js` is the general browser client.
+`examples/a-habit-a-day-account-client.js` maps A Habit A Day's existing
+`name`, `email`, and `password` fields to this contract.
 
-A Habit A Day needs to:
+A Habit A Day still needs the client connected to its registration and login
+forms. Its habit API must use the same MongoDB user IDs and JWT secret, or check
+the token through `GET /accounts/me`.
 
-1. Copy both JavaScript account clients into the app's `src` directory.
-2. Replace the direct registration and login fetches with `HabitAccountClient`.
-3. Add the MS2 password rules to the registration form instructions.
-4. Decide how an MS2 `account_id` connects to the protected habit data.
-5. Add one consumer-side test for registration, login, or a handled error.
+PrepTrack still needs the general client connected to its registration and
+login screens. Set `VITE_ACCOUNT_SERVICE_URL=http://127.0.0.1:5002` in the
+PrepTrack environment file.
 
-The MS2 session token is not the same as the current Express JWT. A Habit A Day
-needs an explicit account/session connection before the protected habit routes
-can use MS2 authentication.
-
-### PrepTrack remaining task
-
-PrepTrack needs to:
-
-1. Copy `account-service-client.js` into the PrepTrack `src` directory.
-2. Connect `AccountServiceClient` to the registration and login UI.
-3. Store the returned session token for the active PrepTrack session.
-4. Add one consumer-side test for registration, login, or a handled error.
-
-PrepTrack can keep username login or use
-`accounts.login({ email, password })`. PrepTrack inventory stays in PrepTrack;
-MS2 only receives account fields and returns the account ID and session token.
-
-### Integration note required
-
-A completed Main Program integration needs a short README note containing:
-
-- Main Program name and language/framework
-- account client location
-- connected flow, such as registration, login, or logout
-- one successful integration test and one handled error
-
-Main Program source and tests stay in the Main Program repository. Do not copy
-an app, environment file, database, password, or token into this service repo.
-
-## Configuration and security
-
-| Environment variable | Default |
-| --- | --- |
-| `ACCOUNT_DATABASE_PATH` | `instance/accounts.sqlite3` |
-| `ACCOUNT_SESSION_TTL_SECONDS` | `3600` |
-| `ACCOUNT_ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` |
-| `ACCOUNT_HOST` / `ACCOUNT_PORT` | `127.0.0.1` / `5002` |
-| `ACCOUNT_SERVICE_URL` | `http://127.0.0.1:5002` |
-
-Passwords are stored as salted scrypt hashes, and session tokens are stored as
-SHA-256 hashes. Do not commit databases, environment files, passwords, tokens,
-or real personal data. The service is configured for local use; add HTTPS and
-request throttling before exposing it on a network.
+Each Main Program still needs one consumer-side test for a successful request
+or a handled error. Main Program source stays in its own repository.

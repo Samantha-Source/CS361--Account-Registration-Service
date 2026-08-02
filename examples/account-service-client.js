@@ -44,10 +44,10 @@ export class AccountServiceClient {
     return this.request("/health");
   }
 
-  register({ username, email, password }) {
+  register({ username, name, email, password }) {
     return this.request("/accounts", {
       method: "POST",
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ username, ...(name ? { name } : {}), email, password }),
     });
   }
 

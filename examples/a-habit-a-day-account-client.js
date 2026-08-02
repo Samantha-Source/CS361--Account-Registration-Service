@@ -30,7 +30,7 @@ export function createAccountUsername(name, email) {
 function toHabitUser(account) {
   return {
     _id: account.account_id,
-    name: account.username,
+    name: account.name || account.username,
     email: account.email,
   };
 }
@@ -43,10 +43,12 @@ export class HabitAccountClient {
   async register({ name, email, password }) {
     const account = await this.accounts.register({
       username: createAccountUsername(name, email),
+      name,
       email,
       password,
     });
-    return { user: toHabitUser(account) };
+    const session = await this.accounts.login({ email, password });
+    return { token: session.session_token, user: toHabitUser(account) };
   }
 
   async login({ email, password }) {
