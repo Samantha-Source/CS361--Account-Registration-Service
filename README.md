@@ -65,7 +65,7 @@ const response = await fetch("http://127.0.0.1:5002/accounts", {
     email: "demo@example.test",
     password: "Example-Passphrase-42!"
   })
-});
+})
 ```
 
 Usernames must be 3-50 characters and may contain letters, numbers, periods,
@@ -82,7 +82,7 @@ const response = await fetch("http://127.0.0.1:5002/sessions", {
     email: "demo@example.test",
     password: "Example-Passphrase-42!"
   })
-});
+})
 ```
 
 ## Receive data
@@ -114,8 +114,8 @@ Use that token for protected requests:
 ```javascript
 const accountResponse = await fetch("http://127.0.0.1:5002/accounts/me", {
   headers: { Authorization: `Bearer ${session.session_token}` }
-});
-const account = await accountResponse.json();
+})
+const account = await accountResponse.json()
 ```
 
 Logout returns HTTP 204 with an empty body. Errors return JSON such as:

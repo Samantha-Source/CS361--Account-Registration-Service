@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "mongoose"
 
 const userSchema = new mongoose.Schema(
   {
@@ -37,18 +37,18 @@ const userSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
-);
+)
 
 userSchema.set("toJSON", {
   transform: (_document, result) => {
-    delete result.passwordHash;
-    delete result.sessionVersion;
-    delete result.usernameKey;
-    delete result.__v;
-    return result;
+    delete result.passwordHash
+    delete result.sessionVersion
+    delete result.usernameKey
+    delete result.__v
+    return result
   },
-});
+})
 
-const User = mongoose.models.User || mongoose.model("User", userSchema);
+const User = mongoose.models.User || mongoose.model("User", userSchema)
 
-export default User;
+export default User

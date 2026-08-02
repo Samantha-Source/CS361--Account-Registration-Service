@@ -1,13 +1,13 @@
-import mongoose from "mongoose";
+import mongoose from "mongoose"
 
 export async function connectDatabase(uri) {
   if (!uri) {
-    throw new Error("MONGODB_URI is required.");
+    throw new Error("MONGODB_URI is required.")
   }
 
-  await mongoose.connect(uri);
+  await mongoose.connect(uri)
 }
 
 export async function disconnectDatabase() {
-  await mongoose.disconnect();
+  await mongoose.disconnect()
 }
